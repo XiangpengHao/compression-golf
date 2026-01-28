@@ -11,6 +11,7 @@ A compression challenge: encode 11,351 GitHub events into the smallest possible 
 | 🥇 | [agavra](https://github.com/agavra) | 190.14 KB | delta + prefix + zstd |
 | 🥈 | *[Columnar example](src/columnar.rs)* | 200.03 KB | columnar + dict + rle + zstd |
 | 🥉 | *[Prefix example](src/prefix.rs)* | 202.05 KB | prefix coding + zstd |
+|    | *Zstd* | 243.51 KB | JSON + zstd |
 |    | *Naive (baseline)* | 2.16 MB | JSON serialization |
 
 *[Submit a PR](https://github.com/agavra/bit-golf/pulls) to claim your spot!*
