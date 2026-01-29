@@ -32,16 +32,18 @@
 //! ## Data layout:
 //!
 //! ```text
-//! [type_dict][user_dict][repo_dict][event_count][event1][event2]...
+//! [type_dict][user_dict][repo_dict][event_count]
+//! [0xFF][type_idx][events...][0xFF][type_idx][events...]...
 //!
-//! Each event:
-//! [type_idx: 1 byte]
+//! Each event (no type_idx since grouped by type):
 //! [id_delta: signed varint]
 //! [repo_id_delta: signed varint]
 //! [user_idx_delta: signed varint]
 //! [repo_idx_delta: signed varint]
 //! [timestamp_delta: signed varint]
 //! ```
+//!
+//! Output is sorted by id (canonical order).
 //!
 
 use bytes::Bytes;
@@ -277,8 +279,9 @@ impl EventCodec for AgavraCodec {
             repo.to_string()
         }));
 
+        // Sort by event_type to group, then by id within each group
         let mut sorted: Vec<_> = events.iter().collect();
-        sorted.sort_by(|a, b| a.0.cmp(&b.0));
+        sorted.sort_by(|a, b| (&a.0.event_type, &a.0.id).cmp(&(&b.0.event_type, &b.0.id)));
 
         let mut buf = Vec::new();
 
@@ -292,9 +295,15 @@ impl EventCodec for AgavraCodec {
         let mut prev_user_idx: u32 = 0;
         let mut prev_repo_idx: u32 = 0;
         let mut prev_ts: u64 = 0;
+        let mut current_type: Option<&str> = None;
 
         for (key, value) in &sorted {
-            buf.push(type_enum.get_index(&key.event_type));
+            // Write type delimiter when type changes
+            if current_type != Some(&key.event_type) {
+                buf.push(0xFF);
+                buf.push(type_enum.get_index(&key.event_type));
+                current_type = Some(&key.event_type);
+            }
 
             let id: u64 = key.id.parse().unwrap_or(0);
             let delta_id = id as i64 - prev_id as i64;
@@ -339,11 +348,16 @@ impl EventCodec for AgavraCodec {
         let mut prev_user_idx: u32 = 0;
         let mut prev_repo_idx: u32 = 0;
         let mut prev_ts: u64 = 0;
+        let mut current_type = String::new();
 
         for _ in 0..count {
-            let type_idx = bytes[pos];
-            pos += 1;
-            let event_type = type_enum.get_type(type_idx).to_string();
+            // Check for type delimiter (0xFF)
+            if bytes[pos] == 0xFF {
+                pos += 1;
+                let type_idx = bytes[pos];
+                pos += 1;
+                current_type = type_enum.get_type(type_idx).to_string();
+            }
 
             let delta_id = decode_signed_varint(bytes, &mut pos);
             let id = (prev_id as i64 + delta_id) as u64;
@@ -373,7 +387,7 @@ impl EventCodec for AgavraCodec {
 
             events.push((
                 EventKey {
-                    event_type,
+                    event_type: current_type.clone(),
                     id: id.to_string(),
                 },
                 EventValue {
@@ -386,6 +400,9 @@ impl EventCodec for AgavraCodec {
                 },
             ));
         }
+
+        // Sort by id (canonical order)
+        events.sort_by(|a, b| a.0.cmp(&b.0));
 
         Ok(events)
     }

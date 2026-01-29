@@ -1,18 +1,17 @@
 # bit-golf
 
-**Can you beat 181.89 KB?**
+**Can you beat 12.01 MB?**
 
 A compression challenge: encode 11,351 GitHub events into the smallest possible binary format.
 
 ## Leaderboard
 
-| Rank | Who | Size | Approach |
-|------|-----|------|----------|
-| 🥇 | [agavra](https://github.com/agavra) | 181.89 KB | delta + prefix + zstd |
-| 🥈 | *[Prefix example](src/prefix.rs)* | 187.07 KB | prefix coding + zstd |
-| 🥉 | *[Columnar example](src/columnar.rs)* | 187.33 KB | columnar + dict + rle + zstd |
-|    | *Zstd* | 206.94 KB | JSON + zstd |
-|    | *Naive (baseline)* | 2.16 MB | JSON serialization |
+| Rank | Who                                | Size      |
+|------|------------------------------------|-----------|
+| 1    | *[Zstd(22)](src/zstd.rs)*          | 12.01 MB  |
+| 2    | [agavra](src/agavra.rs)            | 15.30 MB  |
+| 3    | [Zstd(9)](src/zstd.rs)             | 17.04 MB  |
+|      | *[Naive (baseline)](src/naive.rs)* | 200.97 MB |
 
 *[Submit a PR](https://github.com/agavra/bit-golf/pulls) to claim your spot!*
 
@@ -52,8 +51,8 @@ Each of the 11,351 events contains:
 
 ```rust
 pub struct EventKey {
-    pub event_type: String,  // 14 unique types (e.g., "PushEvent", "WatchEvent")
     pub id: String,          // numeric string, e.g., "2489651045"
+    pub event_type: String,  // 14 unique types (e.g., "PushEvent", "WatchEvent")
 }
 
 pub struct EventValue {
@@ -72,8 +71,9 @@ pub struct Repo {
 
 ```rust
 pub trait EventCodec {
-    fn encode(events: &[(EventKey, EventValue)]) -> Result<Bytes, Box<dyn Error>>;
-    fn decode(bytes: &[u8]) -> Result<Vec<(EventKey, EventValue)>, Box<dyn Error>>;
+    fn name(&self) -> &str;
+    fn encode(&self, events: &[(EventKey, EventValue)]) -> Result<Bytes, Box<dyn Error>>;
+    fn decode(&self, bytes: &[u8]) -> Result<Vec<(EventKey, EventValue)>, Box<dyn Error>>;
 }
 ```
 
@@ -89,12 +89,22 @@ use crate::{EventKey, EventValue};
 
 pub struct YournameCodec;
 
+impl YournameCodec {
+    pub fn new() -> Self {
+        Self
+    }
+}
+
 impl EventCodec for YournameCodec {
-    fn encode(events: &[(EventKey, EventValue)]) -> Result<Bytes, Box<dyn Error>> {
+    fn name(&self) -> &str {
+        "yourname"
+    }
+
+    fn encode(&self, events: &[(EventKey, EventValue)]) -> Result<Bytes, Box<dyn Error>> {
         todo!()
     }
 
-    fn decode(bytes: &[u8]) -> Result<Vec<(EventKey, EventValue)>, Box<dyn Error>> {
+    fn decode(&self, bytes: &[u8]) -> Result<Vec<(EventKey, EventValue)>, Box<dyn Error>> {
         todo!()
     }
 }
@@ -107,13 +117,13 @@ mod yourname;
 use yourname::YournameCodec;
 ```
 
-3. Add benchmark in `main()`:
+3. Add your codec to the `codecs` vec in `main()`:
 
 ```rust
-let encoded = ZstdCodec::<YournameCodec>::encode(&events)?;
-print_row("yourname", encoded.len(), baseline);
-let decoded = ZstdCodec::<YournameCodec>::decode(&encoded)?;
-assert_eq!(sorted_events, decoded);
+let codecs: Vec<(Box<dyn EventCodec>, &[(EventKey, EventValue)])> = vec![
+    // ... existing codecs ...
+    (Box::new(YournameCodec::new()), &sorted_events),
+];
 ```
 
 ## Rules
@@ -121,7 +131,6 @@ assert_eq!(sorted_events, decoded);
 - Codec must be deterministic
 - No external data or pretrained models
 - Must compile with stable Rust
-- `ZstdCodec<T>` wrapper is allowed and encouraged
 - Decode must produce byte-identical output to sorted input
 
 ## Resources

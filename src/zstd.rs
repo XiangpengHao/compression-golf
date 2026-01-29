@@ -20,7 +20,7 @@ impl ZstdCodec {
 
 impl EventCodec for ZstdCodec {
     fn name(&self) -> &str {
-        "Naive + Zstd"
+        "Zstd(9)"
     }
 
     fn encode(&self, events: &[(EventKey, EventValue)]) -> Result<Bytes, Box<dyn Error>> {

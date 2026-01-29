@@ -15,8 +15,8 @@ use zstd::ZstdCodec;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct EventKey {
-    pub event_type: String,
     pub id: String,
+    pub event_type: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
