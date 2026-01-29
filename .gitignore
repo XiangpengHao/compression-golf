@@ -15,5 +15,7 @@ Thumbs.db
 *.swo
 *~
 
-# Data (use gzip compressed version)
-data.json
+# Data (only data.json.gz is tracked)
+*.json
+*.json.gz
+!data.json.gz

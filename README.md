@@ -48,13 +48,21 @@ cargo run --release
 
 The dataset is distributed as `data.json.gz` to keep the repo size manageable.
 
+To test against a different dataset:
+
+```bash
+cargo run --release -- path/to/your/data.json
+```
+
 ## How to Compete
 
 1. Fork this repo
-2. Create `src/yourname.rs` implementing `EventCodec`
+2. Create `src/<your-github-username>.rs` implementing `EventCodec`
 3. Add it to `main.rs` (see [Adding Your Codec](#adding-your-codec))
 4. Run `cargo run --release` to verify it beats the current best
-5. **Submit a PR** to claim your spot on the leaderboard
+5. **Submit a PR** with only your single codec file to claim your spot on the leaderboard
+
+**Important:** Your PR should only add one file: `src/<your-github-username>.rs`. Do not modify other files (except the necessary `main.rs` imports). This keeps submissions clean and easy to review.
 
 ## The Data
 
@@ -143,7 +151,55 @@ let codecs: Vec<(Box<dyn EventCodec>, &[(EventKey, EventValue)])> = vec![
 - No external data or pretrained models
 - Must compile with stable Rust
 - Decode must produce byte-identical output to sorted input
+- PRs must add a single file: `src/<your-github-username>.rs`
 - **Submission deadline: March 1st, 2025** — evaluation dataset revealed and winners announced
+
+## Generating Your Own Evaluation Dataset
+
+Want to test your codec against different data? You can generate your own dataset
+from [GitHub Archive](https://www.gharchive.org/), which provides hourly dumps of all public GitHub
+events.
+
+### Download Raw Data
+
+GitHub Archive files are available at `https://data.gharchive.org/{YYYY-MM-DD-H}.json.gz`:
+
+```bash
+# Download a single hour
+curl -O https://data.gharchive.org/2024-01-15-12.json.gz
+
+# Download a full day (24 files)
+for hour in {0..23}; do
+  curl -O "https://data.gharchive.org/2024-01-15-${hour}.json.gz"
+done
+```
+
+### Extract Required Fields
+
+The raw GitHub Archive data contains many fields, but this challenge only uses a subset. Use `jq` to extract the required fields:
+
+```bash
+# Extract fields and combine into a single file
+gunzip -c 2024-01-15-*.json.gz | jq -c '{
+  id,
+  type,
+  repo: {id: .repo.id, name: .repo.name, url: .repo.url},
+  created_at
+}' > my_data.json
+```
+
+### Limit to a Specific Size (Optional)
+
+```bash
+# Take the first N events
+head -n 100000 my_data.json > my_data_100k.json
+```
+
+### Run Against Your Dataset
+
+```bash
+cargo run --release -- my_data_100k.json
+```
 
 ## Resources
 

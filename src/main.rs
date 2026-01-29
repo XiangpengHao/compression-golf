@@ -135,9 +135,11 @@ fn assert_events_eq(
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let path = "data.json";
-    let events = load_events(path)?;
-    println!("Loaded {} events\n", events.len());
+    let path = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| "data.json".to_string());
+    let events = load_events(&path)?;
+    println!("Loaded {} events from {}\n", events.len(), path);
 
     let mut sorted_events: Vec<_> = events.clone();
     sorted_events.sort_by(|a, b| a.0.cmp(&b.0));
